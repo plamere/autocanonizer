@@ -6,6 +6,18 @@ var favSongs = [
         "visits": 62
     }, 
     {
+        "artist": "Adele", 
+        "id": "TRLZWAN142E39CDD1A", 
+        "title": "Someone Like You", 
+        "visits": 110
+    }, 
+    {
+        "artist": "Guns N' Roses", 
+        "id": "TRXNFCB13D13DD1CEB", 
+        "title": "Knockin' On Heaven's Door", 
+        "visits": 110
+    }, 
+    {
         "artist": "Skrillex", 
         "id": "TRQEJOQ13B0F8E07E5", 
         "title": "Levels (Skrillex Remix)", 

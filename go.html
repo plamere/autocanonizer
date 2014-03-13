@@ -804,11 +804,11 @@ function Driver(player) {
             var secondaryQ = masterQ.other;
             // yep, there are some things to sort out here
             startDelay = 0;
-            var delay = player.play(startDelay, masterQ, masterQ.duration, masterGain, 0);
+            var delay = player.play(startDelay, masterQ, masterQ.duration + .01, masterGain, 0);
             delay = masterQ.duration;
 
             var otherGain = (1 - masterGain) * masterQ.otherGain;
-            player.play(startDelay, secondaryQ, secondaryQ.duration,  otherGain, 1);
+            player.play(startDelay, secondaryQ, secondaryQ.duration + .01,  otherGain, 1);
             curQ++;
             nextTime = now + startDelay + masterQ.duration;
             setTimeout( function () { process(); }, 1000 * delay);

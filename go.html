@@ -33,13 +33,11 @@
 
 <div id='info-div'>
 <span id='info'> </span> 
-<!--
 <span id='tweet-span'> 
     <a href="https://twitter.com/share" id='tweet' class="twitter-share-button" data-lang="en" data-count='none'>Tweet</a>
     <script>!function(d,s,id){var
     js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
 </span>
--->
 </div>
 
 <div id='error'> </div> 
@@ -493,6 +491,7 @@ function setURL() {
         var p = '?trid=' + curTrack.id;
         history.replaceState({}, document.title, p);
     }
+    tweetSetup(curTrack);
 }
 
 function tweetSetup(t) {
@@ -507,7 +506,7 @@ function tweetSetup(t) {
 
     $("#tweet-span").prepend(tweet);
     if (t) {
-        tweet.attr('data-text',  "Listen to my version of " + t.fixedTitle + " #SwapTheDrop");
+        tweet.attr('data-text',  "Listen to " + t.fixedTitle + " #autocanonizer");
         tweet.attr('data-url', document.URL);
     } 
     // twitter can be troublesome. If it is not there, don't bother loading it

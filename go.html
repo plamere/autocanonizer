@@ -330,7 +330,9 @@ function gotTheAnalysis(profile) {
                 if (percent >= 99) {
                     info("Here we go ...");
                 } else {
-                    info( percent  + "% of track loaded ");
+                    if (!isNaN(percent)) {
+                        info( percent  + "% of track loaded ");
+                    }
                 }
             } else {
                 info('Trouble  ' + t.status);
@@ -798,20 +800,15 @@ function Driver(player) {
         if (curQ >= masterQs.length) {
             stop();
         } else if (running) {
-            var now = player.curTime();
             var masterQ = masterQs[curQ];
-            var startDelay = nextTime - now;
             var secondaryQ = masterQ.other;
-            // yep, there are some things to sort out here
-            startDelay = 0;
-            var delay = player.play(startDelay, masterQ, masterQ.duration + .01, masterGain, 0);
+            var otherGain = (1 - masterGain) * masterQ.otherGain;
+            var delay = player.play(0, masterQ, masterQ.duration + .001, masterGain, 0);
+            player.play(0, secondaryQ, masterQ.duration + .001,  otherGain, 1);
             delay = masterQ.duration;
 
-            var otherGain = (1 - masterGain) * masterQ.otherGain;
-            player.play(startDelay, secondaryQ, secondaryQ.duration + .01,  otherGain, 1);
             curQ++;
-            nextTime = now + startDelay + masterQ.duration;
-            setTimeout( function () { process(); }, 1000 * delay);
+            setTimeout( function () { process(); }, 1000 * delay );
             masterQ.tile.highlight();
             masterQ.other.tile.highlight2();
             updateCursors(masterQ);

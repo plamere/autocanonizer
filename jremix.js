@@ -209,8 +209,15 @@ function createJRemixer(context, jquery) {
 
         getPlayer : function() {
             var speedFactor = 1.00;
-            var curQ = [null, null];
-            var curAudioSource = [null, null];
+            var curQ = null;
+            var curAudioSource = null;
+            var nextTime = 0;
+            var filter = context.createBiquadFilter();
+
+            filter.type = filter.LOWPASS;
+            filter.frequency.value = 5000;
+            filter.connect(context.destination);
+
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
                 var now = context.currentTime;
@@ -232,14 +239,22 @@ function createJRemixer(context, jquery) {
                 audioGain.gain.value = gain;
                 audioSource.buffer = q.track.buffer;
                 audioSource.connect(audioGain);
-                audioSource.noteGrainOn(start, q.start, duration);
+                audioSource.start(start, q.start, duration);
                 audioGain.connect(context.destination);
                 return duration + when;
             }
 
+            // let it ride behavior only on channel zero,otherwise the second
+            // channel will get out of sync.
+
             function playQuantumWithDuration(when, q, dur, gain, channel) {
+                // when is vestigial, should always be 0 (for now)
                 var now = context.currentTime;
-                var start = when == 0 ? now : when;
+                var delta =  nextTime == 0 ? 0 : nextTime - now;
+
+                if (channel == 0) {
+                    console.log('ts', now, q.start);
+                }
 
                 if (dur == undefined) {
                     dur = q.duration;
@@ -249,10 +264,15 @@ function createJRemixer(context, jquery) {
                     gain = 1;
                 }
 
+                if (channel == undefined) {
+                    channel = 0;
+                }
+
                 var duration = dur * speedFactor;
 
-                if (speedFactor == 1 && curQ[channel] 
-                    && curQ[channel].track === q.track && curQ[channel].which + 1 == q.which) {
+                if (speedFactor == 1 && channel == 0 && curQ && 
+                    curQ.track === q.track && curQ.which + 1 == q.which) {
+                    console.log('let it ride');
                     // let it ride
                 } else {
                     var audioSource = context.createBufferSource();
@@ -260,16 +280,27 @@ function createJRemixer(context, jquery) {
                     audioGain.gain.value = gain;
                     audioSource.buffer = q.track.buffer;
                     audioSource.connect(audioGain);
-                    var tduration = track.audio_summary.duration - q.start;
-                    audioSource.noteGrainOn(start, q.start, tduration);
-                    audioGain.connect(context.destination);
-                    if (curAudioSource[channel]) {
-                        curAudioSource[channel].noteOff(start);
+                    if (channel == 0) {
+                        var tduration = track.audio_summary.duration - q.start;
+                        console.log('c1', q.start, tduration);
+                        audioSource.start(0, q.start, tduration);
+                        audioGain.connect(context.destination);
+                        if (curAudioSource) {
+                            curAudioSource.stop(0);
+                        }
+                        curAudioSource = audioSource;
+                    } else {
+                        console.log('c2', delta, q.start, q.duration);
+                        audioSource.start(0, q.start + delta, q.duration);
+                        audioGain.connect(context.destination);
                     }
-                    curAudioSource[channel] = audioSource;
                 }
-                curQ[channel] = q;
-                return duration + when;
+
+                if (channel == 0) {
+                    curQ = q;
+                    nextTime = now + duration;
+                }
+                return duration;
             }
 
             function error(s) {
@@ -289,14 +320,10 @@ function createJRemixer(context, jquery) {
                     return speedFactor;
                 },
 
-                stop: function(q) {
-                    if (q === undefined) {
-                    } else {
-                        if ('audioSource' in q) {
-                            if (q.audioSource != null) {
-                                q.audioSource.noteOff(0);
-                            }
-                        }
+                stop: function() {
+                    if (curAudioSource) {
+                        curAudioSource.stop();
+                        curAudioSource = null;
                     }
                 },
 

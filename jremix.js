@@ -211,7 +211,7 @@ function createJRemixer(context, jquery) {
             var speedFactor = 1.00;
             var curQ = null;
             var curAudioSource = null;
-            var masterGain = .55;
+            var masterGain = .53;
             var deltaTime = 0;
             var mainGain = context.createGain();
             var otherGain = context.createGain();
@@ -312,11 +312,11 @@ function createJRemixer(context, jquery) {
 
                 stop: function() {
                     if (curAudioSource) {
-                        curAudioSource.stop();
+                        curAudioSource.stop(0);
                         curAudioSource = null;
                     }
                     if (ocurAudioSource) {
-                        ocurAudioSource.stop();
+                        ocurAudioSource.stop(0);
                         ocurAudioSource = null;
                     }
                 },

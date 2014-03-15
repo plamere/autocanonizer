@@ -315,6 +315,10 @@ function createJRemixer(context, jquery) {
                         curAudioSource.stop();
                         curAudioSource = null;
                     }
+                    if (ocurAudioSource) {
+                        ocurAudioSource.stop();
+                        ocurAudioSource = null;
+                    }
                 },
 
                 curTime: function() {

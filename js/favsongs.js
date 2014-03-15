@@ -24,9 +24,21 @@ var favSongs = [
         "visits": 110
     }, 
     {
+        "artist": "Israel Kamakawiwo'ole", 
+        "id": "TRQPKGR1428F4F24A0", 
+        "title": "Over The Rainbow", 
+        "visits": 62
+    }, 
+    {
         "artist": "The Beatles", 
         "id": "TRJQDYU14404EDA900", 
         "title": "Hey Jude", 
+        "visits": 62
+    }, 
+    {
+        "artist": "Ulvs", 
+        "id": "TROHSLA1419395D433", 
+        "title": "The Fox", 
         "visits": 62
     }, 
     {

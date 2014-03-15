@@ -796,7 +796,7 @@ function Driver(player) {
         $("#tweet-span").show();
     }
 
-    function process() {
+    function processOld() {
         if (curQ >= masterQs.length) {
             stop();
         } else if (running) {
@@ -813,6 +813,22 @@ function Driver(player) {
             masterQ.other.tile.highlight2();
             updateCursors(masterQ);
             mtime.text(fmtTime(masterQ.start));
+        }
+    }
+
+    function process() {
+        if (curQ >= masterQs.length) {
+            stop();
+        } else if (running) {
+            var nextQ = masterQs[curQ];
+            var otherGain = (1 - masterGain) * nextQ.otherGain;
+            delay = player.playQ(nextQ, masterGain, otherGain);
+            curQ++;
+            setTimeout( function () { process(); }, 1000 * delay );
+            nextQ.tile.highlight();
+            nextQ.other.tile.highlight2();
+            updateCursors(nextQ);
+            mtime.text(fmtTime(nextQ.start));
         }
     }
 

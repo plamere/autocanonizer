@@ -211,13 +211,8 @@ function createJRemixer(context, jquery) {
             var speedFactor = 1.00;
             var curQ = null;
             var curAudioSource = null;
-            var nextTime = 0;
-            var filter = context.createBiquadFilter();
-
-            filter.type = filter.LOWPASS;
-            filter.frequency.value = 5000;
-            filter.connect(context.destination);
-
+            var masterGain = .55;
+            var deltaTime = 0;
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
                 var now = context.currentTime;
@@ -244,72 +239,48 @@ function createJRemixer(context, jquery) {
                 return duration + when;
             }
 
-            // let it ride behavior only on channel zero,otherwise the second
-            // channel will get out of sync.
-
-            function playQuantumWithDuration(when, q, dur, gain, channel) {
-                // when is vestigial, should always be 0 (for now)
-                var now = context.currentTime;
-                var delta =  nextTime == 0 ? 0 : nextTime - now;
-
-                if (channel == 0) {
-                    console.log('ts', now, q.start);
-                }
-
-                if (dur == undefined) {
-                    dur = q.duration;
-                }
-
-                if (gain == undefined) {
-                    gain = 1;
-                }
-
-                if (channel == undefined) {
-                    channel = 0;
-                }
-
-                var duration = dur * speedFactor;
-
-                if (speedFactor == 1 && channel == 0 && curQ && 
-                    curQ.track === q.track && curQ.which + 1 == q.which) {
-                    console.log('let it ride');
-                    // let it ride
-                } else {
-                    var audioSource = context.createBufferSource();
-                    var audioGain = ('createGain' in context) ? context.createGain() : context.createGainNode();
-                    audioGain.gain.value = gain;
-                    audioSource.buffer = q.track.buffer;
-                    audioSource.connect(audioGain);
-                    if (channel == 0) {
-                        var tduration = track.audio_summary.duration - q.start;
-                        console.log('c1', q.start, tduration);
-                        audioSource.start(0, q.start, tduration);
-                        audioGain.connect(context.destination);
-                        if (curAudioSource) {
-                            curAudioSource.stop(0);
-                        }
-                        curAudioSource = audioSource;
-                    } else {
-                        console.log('c2', delta, q.start, q.duration);
-                        audioSource.start(0, q.start + delta, q.duration);
-                        audioGain.connect(context.destination);
-                    }
-                }
-
-                if (channel == 0) {
-                    curQ = q;
-                    nextTime = now + duration;
-                }
-                return duration;
-            }
-
             function error(s) {
                 console.log(s);
+            }
+
+            function llPlay(buffer, start, duration, gain) {
+                var audioSource = context.createBufferSource();
+                var audioGain = context.createGain();
+                audioGain.gain.value = gain;
+                audioSource.buffer = buffer;
+                audioSource.connect(audioGain);
+                audioSource.start(0, start, duration);
+                audioGain.connect(context.destination);
+                return audioSource;
+            }
+
+            function playQ(q) {
+                if (curQ == null || curQ.next != q) {
+                    if (curAudioSource) {
+                        curAudioSource.stop();
+                    }
+                    var tduration = q.track.audio_summary.duration - q.start;
+                    curAudioSource = llPlay(q.track.buffer, q.start, tduration, masterGain);
+                    deltaTime = context.currentTime - q.start;
+                }
+
+                var now = context.currentTime - deltaTime;
+                var delta = now - q.start;
+                console.log(q.start, now, now - q.start);
+
+                var otherGain = (1 - masterGain) * q.otherGain;
+                llPlay(q.other.track.buffer, q.other.start, q.other.duration, otherGain);
+                curQ = q;
+                return q.duration - delta;
             }
 
             var player = {
                 play: function(when, q, duration, gain, channel) {
                     return playQuantumWithDurationSimple(when, q, duration, gain, channel);
+                },
+
+                playQ: function(q) {
+                    return playQ(q);
                 },
 
                 setSpeedFactor : function(factor) {

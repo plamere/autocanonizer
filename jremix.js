@@ -213,6 +213,17 @@ function createJRemixer(context, jquery) {
             var curAudioSource = null;
             var masterGain = .55;
             var deltaTime = 0;
+            var mainGain = context.createGain();
+            var otherGain = context.createGain();
+            var skewDelta = 0;
+            var maxSkewDelta = .05;
+            var ocurAudioSource = null;
+
+            mainGain.connect(context.destination);
+            otherGain.connect(context.destination);
+
+            mainGain.gain.value = masterGain;
+            otherGain.gain.value = 1 - masterGain;
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
                 var now = context.currentTime;
@@ -245,31 +256,39 @@ function createJRemixer(context, jquery) {
 
             function llPlay(buffer, start, duration, gain) {
                 var audioSource = context.createBufferSource();
-                var audioGain = context.createGain();
-                audioGain.gain.value = gain;
                 audioSource.buffer = buffer;
-                audioSource.connect(audioGain);
+                audioSource.connect(gain);
                 audioSource.start(0, start, duration);
-                audioGain.connect(context.destination);
                 return audioSource;
             }
 
+
             function playQ(q) {
+                // all this complexity is about click reduction.
+                // We want to continuously play as much as we can
+                // without getting out of sync
                 if (curQ == null || curQ.next != q) {
                     if (curAudioSource) {
                         curAudioSource.stop();
                     }
                     var tduration = q.track.audio_summary.duration - q.start;
-                    curAudioSource = llPlay(q.track.buffer, q.start, tduration, masterGain);
+                    curAudioSource = llPlay(q.track.buffer, q.start, tduration, mainGain);
                     deltaTime = context.currentTime - q.start;
                 }
 
                 var now = context.currentTime - deltaTime;
                 var delta = now - q.start;
-                console.log(q.start, now, now - q.start);
 
-                var otherGain = (1 - masterGain) * q.otherGain;
-                llPlay(q.other.track.buffer, q.other.start, q.other.duration, otherGain);
+                otherGain.gain.value = (1 - masterGain) * q.otherGain;
+                if (curQ == null || curQ.other.next != q.other || Math.abs(skewDelta) > maxSkewDelta) {
+                    skewDelta = 0;
+                    if (ocurAudioSource) {
+                        ocurAudioSource.stop();
+                    }
+                    var oduration = q.other.track.audio_summary.duration - q.other.start;
+                    ocurAudioSource = llPlay(q.other.track.buffer, q.other.start, oduration, otherGain);
+                }
+                skewDelta += q.duration - q.other.duration;
                 curQ = q;
                 return q.duration - delta;
             }

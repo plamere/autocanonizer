@@ -312,6 +312,11 @@ function allReady() {
         q1.section = getSection(q1);
     });
 
+    // make the last beat last until the end of the song
+
+    var lastBeat = masterQs[masterQs.length - 1];
+    lastBeat.duration = trackDuration - lastBeat.start;
+
     _.each(masterQs, function(q1) {
         calculateNearestNeighborsForQuantum(masterQs, q1); 
     });
@@ -697,7 +702,6 @@ var vPad = 20;
 var hPad = 20;
 
 function createTiles(qlist) {
-    drawSections();
     normalizeColor();
     var GH = H - vPad * 2;
     var HB = H - vPad;
@@ -710,8 +714,9 @@ function createTiles(qlist) {
         var height = (H - vPad) * Math.pow(q.median_volume, 4);
         createTile(i, q, x, HB - height, tileWidth, height);
     }
-    updateCursors(qlist[0]);
     drawConnections(qlist);
+    drawSections();
+    updateCursors(qlist[0]);
     return tiles;
 }
 
@@ -743,7 +748,7 @@ function drawConnection(q1, q2, maxDelta) {
     var cy = delta/maxDelta * CH * 2.0;
 
     if (cy < 20) {
-        cy = 20;
+        cy = 30;
     }
 
     cy = H + cy;
@@ -753,12 +758,13 @@ function drawConnection(q1, q2, maxDelta) {
     // but always at most one for the master.
 
     var x1 = hPad + TW * q1.other.start / trackDuration;
-    var y = H;
+    var y = H -4;
     var x2 = hPad + TW * q2.other.start / trackDuration;
     var cx = (x2 - x1) / 2 + x1;
     var path = 'M' + x1 + ' ' + y + ' S ' + cx + ' ' + cy  + ' ' + x2 + ' ' + y;
     q1.ppath = paper.path(path)
     q1.ppath.attr('stroke', getQuantumColor(q1.other));
+    q1.ppath.attr('stroke-width', 4);
 }
 
 function drawSections() {

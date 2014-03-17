@@ -42,13 +42,13 @@
 
 <div id='error'> </div> 
 <div id="hero">
-    <div id='tiles'></div>
     <div id="stats">
         <button class="btn btn-small" id='play'>Play</button>
         <span id="numbers"> 
             <span class='nval' id='mtime'> 00:00:00 </span> 
         </span>
     </div>
+    <div id='tiles'></div>
 </div>
 
 </body>
@@ -71,18 +71,23 @@ s.parentNode.insertBefore(ga, s);
 </script>
 
 <script type="text/javascript">
+"use strict";
 var remixer = null;
 var driver = null;
 var curTrack = null;
 var masterQs = null;
 var masterGain = .55;
-var masterColor = "#FF0F0F";
-var otherColor = "#00FF00";
+var masterColor = "#4F8FFF";
+var otherColor = "#10DF00";
+var trackDuration;
+var masterCursor = null;
+var otherCursor = null;
 
 var paper = null;
 var W = 1000;
 var H = 300;
-var tileWidth = 0;
+var TH = 450;
+var CH = (TH - H) - 10;
 var cmin = [100,100,100];
 var cmax = [-100,-100,-100];
 
@@ -161,6 +166,7 @@ function trackReady(t) {
 function readyToPlay(t) {
     if (t.status === 'ok') {
         curTrack = t;
+        trackDuration = curTrack.audio_summary.duration;
         trackReady(curTrack);
         allReady();
     } else {
@@ -240,8 +246,8 @@ function getSection(q) {
         q = q.parent;
     }
     var sec = q.which;
-    if (sec >= track.analysis.sections.length) {
-        sec = track.analysis.sections.length - 1;
+    if (sec >= curTrack.analysis.sections.length) {
+        sec = curTrack.analysis.sections.length - 1;
     }
     return sec;
 }
@@ -259,7 +265,7 @@ function findMax(dict) {
 }
 
 function foldBySection(qlist) {
-    var nSections = track.analysis.sections.length;
+    var nSections = curTrack.analysis.sections.length;
     for (var section = 0; section < nSections; section++) {
         var counter = {};
         _.each(qlist, function(q) {
@@ -311,6 +317,7 @@ function allReady() {
     });
 
     foldBySection(masterQs);
+    assignNormalizedVolumes(masterQs);
 
     info("ready!");
     info(getFullTitle());
@@ -322,7 +329,6 @@ function gotTheAnalysis(profile) {
     if (status == 'complete') {
         info("Loading track ...");
         remixer.remixTrack(profile.response.track, function(state, t, percent) {
-            track = t;
             if (state == 1) {
                 info("Here we go ...");
                 setTimeout( function() { readyToPlay(t); }, 10);
@@ -369,45 +375,6 @@ function isSegment(q) {
 
 function keydown(evt) {
     console.log('keydown', evt.which);
-    // cycle between the active drivers
-
-    // volume up and down
-    if (evt.which === 187) { // +/=
-        masterGain += .1;
-        if (masterGain >= 1) {
-            masterGain = 1;
-        }
-        $("#vol").text(Math.round((1 - masterGain) * 100));
-    }
-
-    if (evt.which === 189) { // +/=
-        masterGain -= .1;
-        if (masterGain <= 0) {
-            masterGain = 0;
-        }
-        $("#vol").text(Math.round((1 - masterGain) * 100));
-    }
-
-    if (evt.which == 190  ) {  // , slower
-        var factor = master.player.getSpeedFactor() + .01;
-        setSpeedFactor(factor)
-        evt.preventDefault();
-    }
-
-    if (evt.which == 188  ) {  // . faster
-        var factor = master.player.getSpeedFactor() - .01;
-        if (factor < 0) {
-            factor = 0;
-        }
-        setSpeedFactor(factor)
-        evt.preventDefault();
-    }
-
-    if (evt.which == 191  ) {  // / reset
-        setSpeedFactor(1)
-        evt.preventDefault();
-    }
-
     if (evt.which == 32) {
         if (driver.isRunning()) {
             driver.stop();
@@ -462,7 +429,7 @@ function init() {
     );
 
     W = $(window).width() - 100;
-    paper = Raphael("tiles", W, H);
+    paper = Raphael("tiles", W, TH);
     $(document).keydown(keydown);
 
 
@@ -476,7 +443,6 @@ function init() {
         var context = getAudioContext();
         remixer = createJRemixer(context, $);
         driver = Driver(remixer.getPlayer());
-        drivers = [];
         processParams();
     }
 }
@@ -625,7 +591,7 @@ var tilePrototype = {
 
 function normalizeColor() {
 
-    var qlist = track.analysis.segments;
+    var qlist = curTrack.analysis.segments;
     for (var i = 0; i < qlist.length; i++) {
         for (var j = 0; j < 3; j++) {
             var t = qlist[i].timbre[j];
@@ -719,7 +685,6 @@ function createTile(which, q, x, y, width, height) {
     tile.height = height;
     tile.normalColor = getQuantumColor(q);
     tile.rect = paper.rect(x, y, tile.width, tile.height);
-    tile.rect.attr("stroke", "#349");
     tile.rect.tile = tile;
     tile.normal();
     tile.q = q;
@@ -732,30 +697,123 @@ var vPad = 20;
 var hPad = 20;
 
 function createTiles(qlist) {
+    drawSections();
     normalizeColor();
-    var radius = vPad / 2;
+    var GH = H - vPad * 2;
+    var HB = H - vPad;
+    var TW = W - hPad;
+
     for (var i = 0; i < qlist.length; i++) {
         var q = qlist[i];
-        tileWidth = ((W - hPad) / qlist.length);
-        createTile(i, q, hPad + i * tileWidth, vPad, tileWidth, H - vPad * 2);
+        var tileWidth = TW * q.duration / trackDuration; 
+        var x = hPad + TW * q.start / trackDuration;
+        var height = (H - vPad) * Math.pow(q.median_volume, 4);
+        createTile(i, q, x, HB - height, tileWidth, height);
     }
-
-    masterCursor = paper.circle(0, vPad /2, radius);
-    masterCursor.attr("stroke", masterColor);
-    masterCursor.attr("fill", masterColor);
-    otherCursor = paper.circle(0, H - vPad / 2, radius);
-    otherCursor.attr("stroke", otherColor);
-    otherCursor.attr("fill", otherColor);
-
     updateCursors(qlist[0]);
+    drawConnections(qlist);
     return tiles;
 }
 
+function drawConnections(qlist) {
+    var maxDelta = 0;
+    _.each(qlist, function(q, i) {
+        if (q.next) {
+            var delta = Math.abs(q.other.which - q.next.other.which);
+            if (delta > maxDelta) {
+                maxDelta = delta;
+            }
+        }
+    });
+
+    _.each(qlist, function(q, i) {
+        if (q.next) {
+            var delta = q.next.other.which - q.other.which;
+            if (q.which != 0 && delta != 1) {
+                drawConnection(q,  q.next, maxDelta);
+                // drawConnection(q.other, q.next.other, maxDelta);
+            }
+        }
+    });
+}
+
+function drawConnection(q1, q2, maxDelta) {
+    var TW = W - hPad;
+    var delta = Math.abs(q1.other.which - q2.other.which);
+    var cy = delta/maxDelta * CH * 2.0;
+
+    if (cy < 20) {
+        cy = 20;
+    }
+
+    cy = H + cy;
+
+    // the paths are between the 'others', but we store it
+    // in the master since there may be multiple paths for any other
+    // but always at most one for the master.
+
+    var x1 = hPad + TW * q1.other.start / trackDuration;
+    var y = H;
+    var x2 = hPad + TW * q2.other.start / trackDuration;
+    var cx = (x2 - x1) / 2 + x1;
+    var path = 'M' + x1 + ' ' + y + ' S ' + cx + ' ' + cy  + ' ' + x2 + ' ' + y;
+    q1.ppath = paper.path(path)
+    q1.ppath.attr('stroke', getQuantumColor(q1.other));
+}
+
+function drawSections() {
+    var sectionBase =  H - 20;
+    var tw = W - hPad;
+    _.each(curTrack.analysis.sections, function(section, i) {
+        var width = tw * section.duration / trackDuration; 
+        var x = hPad + tw * section.start / trackDuration;
+        var srect = paper.rect(x, sectionBase, width, 20);
+        srect.attr('fill', Raphael.getColor());
+    });
+}
+
 function updateCursors(q) {
-    var x = tileWidth * q.which + hPad;
-    masterCursor.attr( {cx:x, cy:vPad / 2 + 1} );
-    var ox = tileWidth * q.other.which + hPad;
-    otherCursor.attr( {cx:ox, cy: (H - 1) - vPad / 2 } );
+    var cursorWidth = 8;
+    if (masterCursor == null) {
+        masterCursor = paper.rect(0, H - vPad, cursorWidth, vPad / 2);
+        //masterCursor.attr("stroke", masterColor);
+        masterCursor.attr("fill", masterColor);
+
+        otherCursor = paper.rect(0, H - vPad / 2 - 1, cursorWidth, vPad / 2);
+        //otherCursor.attr("stroke", otherColor);
+        otherCursor.attr("fill", otherColor);
+    }
+    var TW = W - hPad;
+    var x = hPad + TW * q.start / trackDuration - cursorWidth / 2;
+    masterCursor.attr( {x:x} );
+
+    var ox = hPad + TW * q.other.start / trackDuration - cursorWidth / 2;
+    if (q.ppath) {
+        moveAlong(otherCursor, q.ppath, q.other.duration * .75);
+    } else {
+        otherCursor.attr( {x:ox} );
+    }
+}
+
+function moveAlong(rect, path, time) {
+    var frame = 1 / 60.;
+    var steps = Math.round(time/frame);
+    var curStep = 0;
+    var plength = path.getTotalLength();
+    var oy = rect.attr('y');
+
+    function animate() {
+        var coords = path.getPointAtLength(curStep / steps * plength);
+        if (curStep++ < steps) {
+            rect.attr( {x:coords.x, y:coords.y});
+            setTimeout(function() {
+                animate();
+            }, frame * 1000);
+        } else {
+            rect.attr({y:oy});
+        }
+    }
+    animate();
 }
 
 var minDistanceThreshold = 80;
@@ -766,6 +824,69 @@ function pad(num, length) {
         s = '0' + s
     }
     return s
+}
+
+function calcWindowMedian(qlist, field, name, windowSize) {
+    _.each(qlist, function(q) {
+        var vals = [];
+        for (var i = 0; i < windowSize; i++) {
+            var offset = i - Math.floor(windowSize / 2);
+            var idx = q.which - offset;
+            if (idx >= 0 && idx < qlist.length) {
+                var val = qlist[idx][field]
+                vals.push(val);
+            }
+        }
+        vals.sort();
+        var median =  vals[Math.floor(vals.length / 2)];
+        q[name] = median;
+    });
+}
+
+function average_volume(q) {
+    var sum = 0;
+    if (q.loudness_max !== undefined) {
+        return q.loudness_max;
+    } else if (q.overlappingSegments.length > 0) {
+        _.each(q.overlappingSegments, function(seg, i) {
+                sum += seg.loudness_max;
+            }
+        );
+        return sum / q.overlappingSegments.length;
+    } else {
+        return -60;
+    }
+}
+
+function interp(val, min, max) {
+    if (min == max) {
+        return min;
+    } else {
+        return (val - min) / (max - min);
+    }
+}
+    
+function assignNormalizedVolumes(qlist) {
+    var minV = 0;
+    var maxV = -60;
+
+    _.each(qlist, function(q, j) {
+            var vol = average_volume(q);
+            q.raw_volume = vol;
+            if (vol > maxV) {
+                maxV = vol;
+            }
+            if (vol < minV) {
+                minV = vol;
+            }
+        }
+    );
+
+    _.each(qlist, function(q, j) {
+            q.volume = interp(q.raw_volume, minV, maxV);
+        }
+    );
+    calcWindowMedian(qlist, 'volume', 'median_volume', 20);
 }
 
 
@@ -822,7 +943,7 @@ function Driver(player) {
         } else if (running) {
             var nextQ = masterQs[curQ];
             var otherGain = (1 - masterGain) * nextQ.otherGain;
-            delay = player.playQ(nextQ, masterGain, otherGain);
+            var delay = player.playQ(nextQ, masterGain, otherGain);
             curQ++;
             setTimeout( function () { process(); }, 1000 * delay );
             nextQ.tile.highlight();
@@ -832,7 +953,7 @@ function Driver(player) {
         }
     }
 
-    var interface = {
+    var theInterface = {
         start: function() {
             resetTileColors(masterQs);
             curQ = 0;
@@ -869,7 +990,7 @@ function Driver(player) {
             curQ = q.which;
         }
     }
-    return interface;
+    return theInterface;
 }
 
 

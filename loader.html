@@ -55,7 +55,7 @@
 
 var selectedSongs = [];
 
-function searchForTrack() {
+function searchForTrackOld() {
     console.log("search for a track");
     var q = $("#search").val();
     console.log(q);
@@ -70,6 +70,24 @@ function searchForTrack() {
 
             $("#pick").hide();
             listTracks('#search-list', data);
+        });
+    }
+}
+
+function searchForTrack() {
+    console.log("search for a track");
+    var q = $("#search").val();
+    console.log(q);
+
+    if (q.length > 0) {
+        var url = 'http://smarterplaylists.playlistmachinery.com/remix/search';
+        $.getJSON(url, { q:q, limit:30}, function(data) {
+            console.log(data);
+            for (var i = 0; i < data.tracks.length; i++) {
+                data.tracks[i].id = data.tracks[i].tid;
+            }
+            $("#pick").hide();
+            listTracks('#search-list', data.tracks);
         });
     }
 }
@@ -112,6 +130,24 @@ function listSong(r) {
         item.attr('class', 'song-link');
         item.click(function() {
                 console.log(r);
+                if ('id' in r) {
+                    document.location = "go.html?trid=" + r.id;
+                } else {
+                    document.location = "go.html?trid=" + r.trid;
+                }
+            });
+    } 
+    return item;
+}
+
+function listSong(r) {
+    var title = r.title;
+    var item = null;
+    if (title) {
+        var item = $('<li>').append(title);
+
+        item.attr('class', 'song-link');
+        item.click(function() {
                 if ('id' in r) {
                     document.location = "go.html?trid=" + r.id;
                 } else {
